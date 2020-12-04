@@ -237,9 +237,9 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
     int y = blockDim.y * blockIdx.y + threadIdx.y;
-    int wx = (int) window_size.x;
-    int wy = (int) window_size.y;
-    if (x >= wx || y >= wy)
+    int width = (int) window_size.x;
+    int height = (int) window_size.y;
+    if (x >= width || y >= height)
     {
         return;
     }
@@ -250,7 +250,7 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
     vec3 rayDir_ec = normalize(vec3(coord_sc, -z));
     vec3 rayDir_wc = normalize(vec3(camera.look_at_mat * vec4(rayDir_ec, 0.0)));
     Ray primary = {camera.position, rayDir_wc};
-    vec3 colorResult = shade(&primary, &scene, near, far, ray_marching_level);
-
-    output_colors[y * wx + x] = vec3(1.0f);
+    vec3 colorResult_f = shade(&primary, &scene, near, far, ray_marching_level);
+    vec3 colorResult = max(min(colorResult_f * 255.f, vec3(255.f)), vec3(0.f)); // convert to [0-255]
+    output_colors[y * width + x] = colorResult;
 }
