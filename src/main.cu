@@ -4,7 +4,8 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "scene.hpp"
-#include "kernel.cuh"
+#include "render.cuh"
+#include "util_funcs.hpp"
 
 using namespace std;
 
