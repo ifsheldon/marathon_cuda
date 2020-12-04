@@ -20,9 +20,7 @@ struct Camera
 
 struct CameraConfig
 {
-    float near;
-    float far;
-    float fovy_radian;
+    vec3 config; // near, far, fovy_radian
 };
 
 enum Mode

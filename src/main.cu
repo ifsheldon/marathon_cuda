@@ -4,6 +4,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "scene.hpp"
+#include "kernel.cuh"
 
 using namespace std;
 
@@ -49,7 +50,7 @@ int main()
     if (!queryGPUCapabilitiesCUDA())
         exit(EXIT_FAILURE);
 
-    cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
-
+//    cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
+    test();
     return 0;
 }
