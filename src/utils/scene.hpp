@@ -51,6 +51,11 @@ private:
     unsigned int max_obj_num;
     unsigned int max_material_num;
 
+    static bool validColor(vec3 &color)
+    {
+        return color.r >= 0.0 && color.g >= 0.0 && color.b >= 0.0;
+    }
+
 public:
     vector<Light> lights;
     vector<Material> materials;
@@ -93,14 +98,57 @@ public:
         return materials.size();
     }
 
-    bool addLight(vec3 position, vec3 ambient, vec3 source_color);
 
-    bool addMaterial(vec3 ambient, vec3 diffuse, vec3 reflect, vec3 reflect_decay, float specular);
+    bool addLight(vec3 position, vec3 ambient, vec3 source_color)
+    {
+        if (getLightNum() == max_light_num || !validColor(ambient) || !validColor(source_color))
+        {
+            return false;
+        } else
+        {
+            lights.emplace_back(position, ambient, source_color);
+            return true;
+        }
+    }
 
-    bool addSphere(float radius, unsigned int material_id, mat4 transformation);
+    bool addMaterial(vec3 ambient, vec3 diffuse, vec3 reflect, vec3 reflect_decay, float specular)
+    {
+        if (getMaterialNum() == max_material_num || !validColor(diffuse) || !validColor(reflect) ||
+            !validColor(reflect_decay))
+        {
+            return false;
+        } else
+        {
+            materials.emplace_back(ambient, diffuse, reflect, reflect_decay, specular);
+            return true;
+        }
+    }
 
-    bool addCylinder(float radius, float height, unsigned int material_id, mat4 transformation);
+    bool addSphere(float radius, unsigned int material_id, mat4 transformation)
+    {
+        if (getObjNum() == max_obj_num || material_id >= getMaterialNum() || radius <= 0.0)
+        {
+            return false;
+        } else
+        {
+            objects.emplace_back(Shape::Sphere, vec2(radius), transformation,
+                                 glm::transpose(glm::inverse(transformation)), material_id);
+            return true;
+        }
+    }
 
+    bool addCylinder(float radius, float height, unsigned int material_id, mat4 transformation)
+    {
+        if (getObjNum() == max_obj_num || material_id >= getMaterialNum() || radius <= 0.0 || height <= 0.0)
+        {
+            return false;
+        } else
+        {
+            objects.emplace_back(Shape::Cylinder, vec2(radius, height), transformation,
+                                 glm::transpose(glm::inverse(transformation)), material_id);
+            return true;
+        }
+    }
 };
 
 
