@@ -212,8 +212,8 @@ __device__ vec3 shade(const Ray* ray, const Scene_d* __restrict__ scene, const f
     {
         bool hasHit = false;
         vec3 hitPos, hitNormal, reflectDecay;
-        vec3 localColor = castRay(&nextRay, scene, preObj, near, far, &hasHit, &hitPos, &hitNormal, &reflectDecay,
-                                  &preObj);
+        vec3 localColor = castRay(&nextRay, scene, preObj, near, far,
+                                  &hasHit, &hitPos, &hitNormal, &reflectDecay, &preObj);
         colorResult += compoundedGlobalReflectDecayCoef * localColor;
         if (!hasHit)
             break;
@@ -240,9 +240,8 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
     int width = (int) window_size.x;
     int height = (int) window_size.y;
     if (x >= width || y >= height)
-    {
         return;
-    }
+
     float near = cameraConfig.config.x;
     float far = cameraConfig.config.y;
     Scene_d scene = {lights, materials, objects, light_num, obj_num};
