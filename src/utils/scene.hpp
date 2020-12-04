@@ -106,7 +106,7 @@ public:
             return false;
         } else
         {
-            lights.emplace_back(position, ambient, source_color);
+            lights.push_back(Light{position, ambient, source_color});
             return true;
         }
     }
@@ -119,7 +119,7 @@ public:
             return false;
         } else
         {
-            materials.emplace_back(ambient, diffuse, reflect, reflect_decay, specular);
+            materials.push_back(Material{ambient, diffuse, reflect, reflect_decay, specular});
             return true;
         }
     }
@@ -131,8 +131,8 @@ public:
             return false;
         } else
         {
-            objects.emplace_back(Shape::Sphere, vec2(radius), transformation,
-                                 glm::transpose(glm::inverse(transformation)), material_id);
+            objects.push_back(Object{Shape::Sphere, vec2(radius), transformation,
+                                     glm::transpose(glm::inverse(transformation)), material_id});
             return true;
         }
     }
@@ -144,8 +144,8 @@ public:
             return false;
         } else
         {
-            objects.emplace_back(Shape::Cylinder, vec2(radius, height), transformation,
-                                 glm::transpose(glm::inverse(transformation)), material_id);
+            objects.push_back(Object{Shape::Cylinder, vec2(radius, height), transformation,
+                                     glm::transpose(glm::inverse(transformation)), material_id});
             return true;
         }
     }
