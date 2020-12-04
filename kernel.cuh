@@ -1,0 +1,8 @@
+//
+// Created by Maple on 2020/12/4.
+//
+
+#ifndef MARATHON_CUDA_KERNEL_CUH
+#define MARATHON_CUDA_KERNEL_CUH
+
+#endif //MARATHON_CUDA_KERNEL_CUH
