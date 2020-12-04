@@ -250,7 +250,6 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
 }
 
 
-
 const unsigned int WINDOW_WIDTH = 512;
 const unsigned int WINDOW_HEIGHT = 512;
 const unsigned int MAX_BLOCK_SIZE = 32;
@@ -271,7 +270,7 @@ dim3 getGridSize()
 #include "CImg.h"
 #include "util_funcs.hpp"
 
-//FIXME: need debugging!
+//FIXME: need debugging! seems the kernel does not run
 //TODO: refactor
 void run()
 {
