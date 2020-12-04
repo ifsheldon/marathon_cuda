@@ -67,7 +67,7 @@ __device__ float sdCylinder(vec3 p, float r, float h)
     return min(max(d.x, d.y), 0.0) + length(max(d, vec2(0.0)));
 }
 
-__device__ float calcDist(const Scene_d* scene, vec3 ref_point, uint objIdx)
+__device__ float calcDist(const Scene_d* __restrict__ scene, vec3 ref_point, uint objIdx)
 {
     vec4 refP = vec4(ref_point, 1.0);
     refP = scene->objects[objIdx].transformation * refP;
@@ -83,7 +83,7 @@ __device__ float calcDist(const Scene_d* scene, vec3 ref_point, uint objIdx)
     }
 }
 
-__device__ float unionSDF(const Scene_d* scene, float* distances, int* objIdx)
+__device__ float unionSDF(const Scene_d* __restrict__ scene, float* distances, int* objIdx)
 {
     float min_dist = distances[0];
     *objIdx = 0;
@@ -98,7 +98,7 @@ __device__ float unionSDF(const Scene_d* scene, float* distances, int* objIdx)
     return min_dist;
 }
 
-__device__ void sceneSDF(const Scene_d* scene, vec3 ref_point, float* distances)
+__device__ void sceneSDF(const Scene_d* __restrict__ scene, vec3 ref_point, float* distances)
 {
     for (uint i = 0; i < scene->obj_num; i++)
     {
@@ -107,7 +107,7 @@ __device__ void sceneSDF(const Scene_d* scene, vec3 ref_point, float* distances)
 }
 
 __device__ float
-shortestDistanceToSurface(const Scene_d* scene, vec3 eye, vec3 marchingDirection, float start_dist, float limit_dist,
+shortestDistanceToSurface(const Scene_d* __restrict__ scene, vec3 eye, vec3 marchingDirection, float start_dist, float limit_dist,
                           int preObj,
                           int* objectIndex)
 {
@@ -135,7 +135,7 @@ shortestDistanceToSurface(const Scene_d* scene, vec3 eye, vec3 marchingDirection
     return limit_dist;
 }
 
-__device__ vec3 estimateNormal(const Scene_d* scene, vec3 ref_pos, uint obj)
+__device__ vec3 estimateNormal(const Scene_d* __restrict__ scene, vec3 ref_pos, uint obj)
 {
     vec4 refP = vec4(ref_pos, 1.0);
     refP = scene->objects[obj].transformation * refP;
@@ -166,7 +166,7 @@ __device__ vec3 estimateNormal(const Scene_d* scene, vec3 ref_pos, uint obj)
     }
 }
 
-__device__ vec3 PhongLighting(const Scene_d* scene, vec3 L, vec3 N, vec3 V, bool inShadow,
+__device__ vec3 PhongLighting(const Scene_d* __restrict__ scene, vec3 L, vec3 N, vec3 V, bool inShadow,
                               uint materialID, int lightIdx)
 {
     if (inShadow)
@@ -185,7 +185,7 @@ __device__ vec3 PhongLighting(const Scene_d* scene, vec3 L, vec3 N, vec3 V, bool
 }
 
 __device__ vec3
-castRay(const Ray* ray, const Scene_d* scene, const int preObj, bool* hasHit, vec3* hitPos, vec3* hitNormal,
+castRay(const Ray* ray, const Scene_d* __restrict__ scene, const int preObj, bool* hasHit, vec3* hitPos, vec3* hitNormal,
         vec3* reflectDecay, int* hitObj)
 {
     int objIndex;
@@ -221,7 +221,7 @@ castRay(const Ray* ray, const Scene_d* scene, const int preObj, bool* hasHit, ve
     }
 }
 
-__device__ vec3 shade(const Ray* ray, const Scene_d* scene)
+__device__ vec3 shade(const Ray* ray, const Scene_d* __restrict__ scene)
 {
     Ray nextRay = {ray->origin, ray->direction};
     vec3 colorResult = vec3(0.0);
