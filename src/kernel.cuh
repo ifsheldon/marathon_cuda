@@ -17,7 +17,10 @@ __global__ void
 renderer(const unsigned int random_seed, const Camera camera, const CameraConfig cameraConfig, const vec2 window_size,
          const float z,
          const Light* __restrict__ lights,
+         const int light_num,
          const Material* __restrict__ materials,
-         const Object* __restrict__ objects, vec3* output_canvas);
+         const Object* __restrict__ objects,
+         const int obj_num,
+         vec3* output_colors);
 
 #endif //MARATHON_CUDA_KERNEL_CUH
