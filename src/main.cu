@@ -1,8 +1,9 @@
 #include <iostream>
-#include "CImg.h"
 #include <cuda_runtime.h>
+#include "CImg.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "scene.hpp"
 
 using namespace std;
 
