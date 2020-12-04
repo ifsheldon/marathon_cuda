@@ -62,7 +62,6 @@ dim3 getGridSize()
 
 int main()
 {
-    std::cout << "Hello, World!" << std::endl;
     if (!queryGPUCapabilitiesCUDA())
         exit(EXIT_FAILURE);
 
@@ -77,21 +76,21 @@ int main()
 
     Light* lights_d;
     cudaMalloc(&lights_d, sizeof(Light) * scene.getLightNum());
-    cudaMemcpy(lights_d, &scene.lights[0], scene.getLightNum(), cudaMemcpyHostToDevice);
+    cudaMemcpy(lights_d, &scene.lights[0], scene.getLightNum() * sizeof(Light), cudaMemcpyHostToDevice);
 
     Material* materials_d;
     cudaMalloc(&materials_d, sizeof(Material) * scene.getMaterialNum());
-    cudaMemcpy(materials_d, &scene.materials[0], scene.getMaterialNum(), cudaMemcpyHostToDevice);
+    cudaMemcpy(materials_d, &scene.materials[0], scene.getMaterialNum() * sizeof(Material), cudaMemcpyHostToDevice);
 
     Object* objects_d;
     cudaMalloc(&objects_d, sizeof(Object) * scene.getObjNum());
-    cudaMemcpy(objects_d, &scene.objects[0], scene.getObjNum(), cudaMemcpyHostToDevice);
+    cudaMemcpy(objects_d, &scene.objects[0], scene.getObjNum() * sizeof(Object), cudaMemcpyHostToDevice);
 
     dim3 dimGrid = getGridSize();
     dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
-    auto mem_size = sizeof(vec3) * WINDOW_WIDTH * WINDOW_HEIGHT;
+    auto image_size = sizeof(vec3) * WINDOW_WIDTH * WINDOW_HEIGHT;
     vec3* output_d;
-    cudaMalloc(&output_d, mem_size);
+    cudaMalloc(&output_d, image_size);
     renderer <<< dimGrid, dimBlock>>>(1, camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                       lights_d, scene.getLightNum(),
                                       materials_d,
@@ -100,7 +99,7 @@ int main()
                                       output_d);
 
     vec3* output_h = new vec3[WINDOW_WIDTH * WINDOW_HEIGHT];
-    cudaMemcpy(output_h, output_d, mem_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
     for (int y = 0; y < WINDOW_HEIGHT; y++)
     {
         int base = y * WINDOW_WIDTH;
@@ -112,7 +111,7 @@ int main()
             *image.data(x, y, 0, 2) = (unsigned char) output_h[idx].b;
         }
     }
-    cimg_library::CImgDisplay inputImageDisplay(image, "RT");
+    cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
     while (!inputImageDisplay.is_closed())
     {
         inputImageDisplay.wait();
