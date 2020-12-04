@@ -21,6 +21,7 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
          const Material* __restrict__ materials,
          const Object* __restrict__ objects,
          const int obj_num,
+         const int ray_marching_level,
          vec3* output_colors);
 
 #endif //MARATHON_CUDA_KERNEL_CUH
