@@ -83,14 +83,17 @@ static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
     if (display.is_keyARROWUP() && super_sample_rate < MAX_SSR)
     {
         super_sample_rate++;
+        printf("Super sample rate = %d\n", super_sample_rate);
     } else if (display.is_keyARROWDOWN() && super_sample_rate > DEFAULT_SSR)
     {
         super_sample_rate--;
+        printf("Super sample rate = %d\n", super_sample_rate);
     } else if (mode == Mode::Orbit)
     {
         if (display.is_key2())
         {
             mode = Mode::Zoom;
+            printf("Switched to Zoom mode");
         } else if (display.is_keyA())
         {
             polar_coords.x += glm::radians(5.0);
@@ -133,6 +136,7 @@ static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
         if (display.is_key1())
         {
             mode = Mode::Orbit;
+            printf("Switched to Orbit mode");
             return false;
         } else if (display.is_keyZ())
         {
@@ -150,7 +154,7 @@ static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
     return true;
 }
 
-
+#define BENCHMARKING
 int main()
 {
     if (!queryGPUCapabilitiesCUDA())
@@ -216,7 +220,7 @@ int main()
             cudaEventSynchronize(stop);
             float milliseconds = 0.0f;
             cudaEventElapsedTime(&milliseconds, start, stop);
-            printf("Took %.2f to render one frame\n", milliseconds);
+            printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds, super_sample_rate);
 #endif
             cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
             for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
