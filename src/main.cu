@@ -176,9 +176,8 @@ int main()
 
     vec3* output_h = new vec3[WINDOW_WIDTH * WINDOW_HEIGHT];
     cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
-    for (int y = 0; y < WINDOW_HEIGHT; y++)
+    for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
     {
-        int base = y * WINDOW_WIDTH;
         for (int x = 0; x < WINDOW_WIDTH; x++)
         {
             int idx = base + x;
@@ -202,9 +201,8 @@ int main()
                                               RM_LEVEL,
                                               output_d);
             cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
-            for (int y = 0; y < WINDOW_HEIGHT; y++)
+            for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
             {
-                int base = y * WINDOW_WIDTH;
                 for (int x = 0; x < WINDOW_WIDTH; x++)
                 {
                     int idx = base + x;
