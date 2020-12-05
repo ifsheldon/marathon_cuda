@@ -33,8 +33,8 @@ void test()
     Scene scene = setupScene();
     dim3 dimGrid(1);
     dim3 dimBlock(size, size);
-    auto mem_size = sizeof(vec3) * size * size;
-    vec3* output_d;
+    auto mem_size = sizeof(color_u8) * size * size;
+    color_u8* output_d;
     cudaMalloc(&output_d, mem_size);
     Camera camera = {vec3(0.0, 0.0, -6.0), vec3(0.0, 1.0, 0.0), vec3(0.0),
                      lookAt(vec3(0.0, 0.0, -6.0), vec3(0.0), vec3(0.0, 1.0, 0.0))};
@@ -58,7 +58,7 @@ void test()
                                       vec3(0.5),
                                       2,
                                       output_d);
-    vec3* output_h = new vec3[size * size];
+    color_u8* output_h = new color_u8[size * size];
     cudaMemcpy(output_h, output_d, mem_size, cudaMemcpyDeviceToHost);
     vec3 sum(0.f);
     for (int i = 0; i < size * size; i++)

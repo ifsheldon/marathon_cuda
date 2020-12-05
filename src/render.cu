@@ -228,7 +228,7 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
          const unsigned int ray_marching_level,
          const vec3 background_color,
          const unsigned int super_sample_rate,
-         vec3* output_colors)
+         color_u8* output_colors)
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
     int y = blockDim.y * blockIdx.y + threadIdx.y;
@@ -271,5 +271,9 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
     }
     colorResult_f /= (super_sample_rate * super_sample_rate + 1);
     vec3 colorResult = max(min(colorResult_f * 255.f, vec3(255.f)), vec3(0.f)); // convert to [0-255]
-    output_colors[y * width + x] = colorResult;
+    color_u8 color(0);
+    color.r = (unsigned char) colorResult.r;
+    color.g = (unsigned char) colorResult.g;
+    color.b = (unsigned char) colorResult.b;
+    output_colors[y * width + x] = color;
 }

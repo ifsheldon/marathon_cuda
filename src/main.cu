@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cuda_runtime.h>
+#include <ctime>
 #include "CImg.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -155,6 +156,7 @@ static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
 }
 
 #define BENCHMARKING
+
 int main()
 {
     if (!queryGPUCapabilitiesCUDA())
@@ -170,8 +172,8 @@ int main()
 
     dim3 dimGrid = getGridSize();
     dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
-    auto image_size = sizeof(vec3) * WINDOW_WIDTH * WINDOW_HEIGHT;
-    vec3* output_d;
+    auto image_size = sizeof(color_u8) * WINDOW_WIDTH * WINDOW_HEIGHT;
+    color_u8* output_d;
     checkCudaErrors(cudaMalloc(&output_d, image_size));
     renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                       scene.getLightNum(),
@@ -181,16 +183,16 @@ int main()
                                       super_sample_rate,
                                       output_d);
 
-    vec3* output_h = new vec3[WINDOW_WIDTH * WINDOW_HEIGHT];
+    color_u8* output_h = new color_u8[WINDOW_WIDTH * WINDOW_HEIGHT];
     cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
     for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
     {
         for (int x = 0; x < WINDOW_WIDTH; x++)
         {
             int idx = base + x;
-            *image.data(x, y, 0, 0) = (unsigned char) output_h[idx].r;
-            *image.data(x, y, 0, 1) = (unsigned char) output_h[idx].g;
-            *image.data(x, y, 0, 2) = (unsigned char) output_h[idx].b;
+            *image.data(x, y, 0, 0) = output_h[idx].r;
+            *image.data(x, y, 0, 1) = output_h[idx].g;
+            *image.data(x, y, 0, 2) = output_h[idx].b;
         }
     }
     cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
@@ -221,6 +223,7 @@ int main()
             float milliseconds = 0.0f;
             cudaEventElapsedTime(&milliseconds, start, stop);
             printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds, super_sample_rate);
+            auto start_time = clock();
 #endif
             cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
             for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
@@ -228,12 +231,16 @@ int main()
                 for (int x = 0; x < WINDOW_WIDTH; x++)
                 {
                     int idx = base + x;
-                    *image.data(x, y, 0, 0) = (unsigned char) output_h[idx].r;
-                    *image.data(x, y, 0, 1) = (unsigned char) output_h[idx].g;
-                    *image.data(x, y, 0, 2) = (unsigned char) output_h[idx].b;
+                    *image.data(x, y, 0, 0) = output_h[idx].r;
+                    *image.data(x, y, 0, 1) = output_h[idx].g;
+                    *image.data(x, y, 0, 2) = output_h[idx].b;
                 }
             }
             image.display(inputImageDisplay);
+#ifdef BENCHMARKING
+            auto end_time = clock();
+            printf("Took %ld ms to display\n", end_time - start_time);
+#endif
         }
     }
     delete[] output_h;

@@ -14,6 +14,7 @@
 #define MAX_OBJ_NUM 50
 
 using glm::vec2;
+typedef glm::vec<3, unsigned char, glm::defaultp> color_u8;
 
 __global__ void
 renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window_size,
@@ -23,6 +24,6 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
          const unsigned int ray_marching_level,
          const vec3 background_color,
          const unsigned int super_sample_rate,
-         vec3* output_colors);
+         color_u8* output_colors);
 
 #endif //MARATHON_CUDA_RENDER_CUH
