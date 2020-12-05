@@ -16,11 +16,13 @@
 using glm::vec2;
 
 __global__ void
-renderer(const unsigned int random_seed, const Camera camera, const CameraConfig cameraConfig, const vec2 window_size,
+renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window_size,
          const float z,
-         const int light_num,
-         const int obj_num,
-         const int ray_marching_level,
+         const unsigned int light_num,
+         const unsigned int obj_num,
+         const unsigned int ray_marching_level,
+         const vec3 background_color,
+         const unsigned int super_sample_rate,
          vec3* output_colors);
 
 #endif //MARATHON_CUDA_RENDER_CUH

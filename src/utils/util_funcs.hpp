@@ -52,8 +52,10 @@ void test()
     cudaMalloc(&objects_d, sizeof(Object) * scene.getObjNum());
     cudaMemcpy(objects_d, &scene.objects[0], scene.getObjNum(), cudaMemcpyHostToDevice);
 
-    renderer <<< dimGrid, dimBlock>>>(1, camera, cameraConfig, vec2(size, size), z, scene.getLightNum(),
+    renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(size, size), z, scene.getLightNum(),
                                       scene.getObjNum(),
+                                      2,
+                                      vec3(0.5),
                                       2,
                                       output_d);
     vec3* output_h = new vec3[size * size];

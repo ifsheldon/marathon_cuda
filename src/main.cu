@@ -158,6 +158,7 @@ int main()
     cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
     Scene scene = setupScene();
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+    vec3 background_color = vec3(0.5);
 
     checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene.lights[0], sizeof(Light) * scene.getLightNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene.objects[0], sizeof(Object) * scene.getObjNum()));
@@ -168,10 +169,12 @@ int main()
     auto image_size = sizeof(vec3) * WINDOW_WIDTH * WINDOW_HEIGHT;
     vec3* output_d;
     checkCudaErrors(cudaMalloc(&output_d, image_size));
-    renderer <<< dimGrid, dimBlock>>>(1, camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+    renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                       scene.getLightNum(),
                                       scene.getObjNum(),
                                       RM_LEVEL,
+                                      background_color,
+                                      super_sample_rate,
                                       output_d);
 
     vec3* output_h = new vec3[WINDOW_WIDTH * WINDOW_HEIGHT];
@@ -195,11 +198,26 @@ int main()
             bool need_rerender = handleKeyboardInput(inputImageDisplay);
             if (!need_rerender)
                 continue;
-            renderer <<< dimGrid, dimBlock>>>(1, camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+#ifdef BENCHMARKING
+            cudaEvent_t start, stop;
+            cudaEventCreate(&start);
+            cudaEventCreate(&stop);
+            cudaEventRecord(start);
+#endif
+            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                               scene.getLightNum(),
                                               scene.getObjNum(),
                                               RM_LEVEL,
+                                              background_color,
+                                              super_sample_rate,
                                               output_d);
+#ifdef BENCHMARKING
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            float milliseconds = 0.0f;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            printf("Took %.2f to render one frame\n", milliseconds);
+#endif
             cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
             for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
             {

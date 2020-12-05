@@ -3,8 +3,6 @@
 //
 
 #include "render.cuh"
-#include <curand.h>
-#include <curand_kernel.h>
 #include <iostream>
 
 using namespace glm;
@@ -159,6 +157,7 @@ __device__ vec3
 castRay(const Ray* ray, const int preObj,
         const float near,
         const float far,
+        const vec3 &background_color,
         bool* hasHit,
         vec3* hitPos,
         vec3* hitNormal,
@@ -169,7 +168,7 @@ castRay(const Ray* ray, const int preObj,
     if (dist > far - EPSILON)
     {
         *hasHit = false;
-        return vec3(0.5); // TODO
+        return background_color;
     } else
     {
         *hitObj = objIndex;
@@ -199,7 +198,7 @@ castRay(const Ray* ray, const int preObj,
 }
 
 __device__ vec3 shade(const Ray* ray, const float near, const float far,
-                      const int ray_marching_level)
+                      const int ray_marching_level, const vec3 &background_color)
 {
     Ray nextRay = {ray->origin, ray->direction};
     vec3 colorResult = vec3(0.0);
@@ -209,7 +208,7 @@ __device__ vec3 shade(const Ray* ray, const float near, const float far,
     {
         bool hasHit = false;
         vec3 hitPos, hitNormal, reflectDecay;
-        vec3 localColor = castRay(&nextRay, preObj, near, far,
+        vec3 localColor = castRay(&nextRay, preObj, near, far, background_color,
                                   &hasHit, &hitPos, &hitNormal, &reflectDecay, &preObj);
         colorResult += compoundedGlobalReflectDecayCoef * localColor;
         if (!hasHit)
@@ -222,11 +221,13 @@ __device__ vec3 shade(const Ray* ray, const float near, const float far,
 }
 
 __global__ void
-renderer(const unsigned int random_seed, const Camera camera, const CameraConfig cameraConfig, const vec2 window_size,
-         const float z,
-         const int lightNum,
-         const int objNum,
-         const int ray_marching_level,
+renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window_size,
+         float z,
+         const unsigned int lightNum,
+         const unsigned int objNum,
+         const unsigned int ray_marching_level,
+         const vec3 background_color,
+         const unsigned int super_sample_rate,
          vec3* output_colors)
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -240,11 +241,35 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
     float far = cameraConfig.config.y;
     light_num = lightNum;
     obj_num = objNum;
-    vec2 coord_sc = vec2(x - window_size.x / 2.0f + 0.5f, y - window_size.y / 2.0f + 0.5f);
-    vec3 rayDir_ec = normalize(vec3(coord_sc, -z));
-    vec3 rayDir_wc = normalize(vec3(camera.look_at_mat * vec4(rayDir_ec, 0.0)));
+    float x_off = -window_size.x / 2.0f + 0.5f;
+    float y_off = -window_size.y / 2.0f + 0.5f;
+    z = -z;
+    vec2 coord_sc = vec2(x + x_off, y + y_off);
+    vec3 rayDir_ec = normalize(vec3(coord_sc, z));
+    vec3 rayDir_wc = vec3(camera.look_at_mat * vec4(rayDir_ec, 0.0));
     Ray primary = {camera.position, rayDir_wc};
-    vec3 colorResult_f = shade(&primary, near, far, ray_marching_level);
+    vec3 colorResult_f = shade(&primary, near, far, ray_marching_level, background_color);
+
+    float grid_size = 1.0f / super_sample_rate;
+    float halt_grid_size = grid_size / 2.0f;
+    float grid_base_x = x;
+    float grid_base_y;
+    for (unsigned int grid_x = 0; grid_x < super_sample_rate; grid_x++, grid_base_x += grid_size)
+    {
+        grid_base_y = y;
+        for (unsigned int grid_y = 0; grid_y < super_sample_rate; grid_y++, grid_base_y += grid_size)
+        {
+            float rand_x = grid_base_x + halt_grid_size;
+            float rand_y = grid_base_y + halt_grid_size;
+            vec3 rand_ray_dir_ec = normalize(
+                    vec3(rand_x + x_off, rand_y + y_off, z));
+            vec3 rand_ray_dir_wc = vec3(camera.look_at_mat * vec4(rand_ray_dir_ec, 0.0));
+            primary.direction = rand_ray_dir_wc;
+            vec3 color_f = shade(&primary, near, far, ray_marching_level, background_color);
+            colorResult_f += color_f;
+        }
+    }
+    colorResult_f /= (super_sample_rate * super_sample_rate + 1);
     vec3 colorResult = max(min(colorResult_f * 255.f, vec3(255.f)), vec3(0.f)); // convert to [0-255]
     output_colors[y * width + x] = colorResult;
 }
