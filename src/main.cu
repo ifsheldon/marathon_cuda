@@ -9,6 +9,7 @@
 #include "CImg.h"
 #include "util_funcs.hpp"
 #include "helper_cuda.h"
+#include "parser.hpp"
 
 #define M_PI      3.14159265358979323846
 #define M_PI_2    1.57079632679489661923
@@ -247,3 +248,12 @@ int main()
     cudaFree(output_d);
     return 0;
 }
+
+//int main()
+//{
+////    Scene s = setupScene();
+////    parse_scene_raw(s, "test.json");
+//    Scene* scene = read_scene_from_json("test.json");
+//    delete scene;
+//    return 0;
+//}
