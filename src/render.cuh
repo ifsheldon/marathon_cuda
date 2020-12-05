@@ -23,6 +23,4 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
          const int ray_marching_level,
          vec3* output_colors);
 
-void run();
-
 #endif //MARATHON_CUDA_RENDER_CUH

@@ -5,6 +5,9 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "scene.hpp"
 #include "render.cuh"
+#include "CImg.h"
+#include "util_funcs.hpp"
+#include "helper_cuda.h"
 
 using namespace std;
 
@@ -39,10 +42,77 @@ bool queryGPUCapabilitiesCUDA()
 }
 
 
+const unsigned int WINDOW_WIDTH = 512;
+const unsigned int WINDOW_HEIGHT = 512;
+const unsigned int MAX_BLOCK_SIZE = 16;
+
+unsigned int ceil_div(unsigned int dividee, unsigned int devider)
+{
+    if (dividee % devider == 0)
+        return dividee / devider;
+    else
+        return dividee / devider + 1;
+}
+
+dim3 getGridSize()
+{
+    return dim3(ceil_div(WINDOW_WIDTH, MAX_BLOCK_SIZE), ceil_div(WINDOW_HEIGHT, MAX_BLOCK_SIZE));
+}
+
+extern __constant__ Light Lights[];
+extern __constant__ Object Objects[];
+extern __constant__ Material Materials[];
+
 int main()
 {
     if (!queryGPUCapabilitiesCUDA())
         exit(EXIT_FAILURE);
-    run();
+    cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
+    Scene scene = setupScene();
+    unsigned int ray_marching_level = 2;
+    Camera camera = {vec3(0.0, 0.0, -6.0), vec3(0.0, 1.0, 0.0), vec3(0.0),
+                     lookAt(vec3(0.0, 0.0, -6.0), vec3(0.0), vec3(0.0, 1.0, 0.0))};
+
+    CameraConfig cameraConfig = {vec3(0.01, 100.0, glm::radians(90.0))};
+    float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+
+    checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene.lights[0], sizeof(Light) * scene.getLightNum()));
+    checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene.objects[0], sizeof(Object) * scene.getObjNum()));
+    checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene.materials[0], sizeof(Material) * scene.getMaterialNum()));
+
+
+    dim3 dimGrid = getGridSize();
+    dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
+    auto image_size = sizeof(vec3) * WINDOW_WIDTH * WINDOW_HEIGHT;
+    vec3* output_d;
+    checkCudaErrors(cudaMalloc(&output_d, image_size));
+    renderer <<< dimGrid, dimBlock>>>(1, camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+                                      scene.getLightNum(),
+                                      scene.getObjNum(),
+                                      ray_marching_level,
+                                      output_d);
+
+    vec3* output_h = new vec3[WINDOW_WIDTH * WINDOW_HEIGHT];
+    cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
+    for (int y = 0; y < WINDOW_HEIGHT; y++)
+    {
+        int base = y * WINDOW_WIDTH;
+        for (int x = 0; x < WINDOW_WIDTH; x++)
+        {
+            int idx = base + x;
+            *image.data(x, y, 0, 0) = (unsigned char) output_h[idx].r;
+            *image.data(x, y, 0, 1) = (unsigned char) output_h[idx].g;
+            *image.data(x, y, 0, 2) = (unsigned char) output_h[idx].b;
+        }
+    }
+    cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
+    while (!inputImageDisplay.is_closed())
+    {
+        inputImageDisplay.wait();
+        image.display(inputImageDisplay);
+        std::cout << "Refreshed" << std::endl;
+    }
+    delete[] output_h;
+    cudaFree(output_d);
     return 0;
 }
