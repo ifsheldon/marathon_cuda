@@ -6,6 +6,7 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <iostream>
+#include "helper_cuda.h"
 
 using namespace glm;
 
@@ -252,7 +253,7 @@ renderer(const unsigned int random_seed, const Camera camera, const CameraConfig
 
 const unsigned int WINDOW_WIDTH = 512;
 const unsigned int WINDOW_HEIGHT = 512;
-const unsigned int MAX_BLOCK_SIZE = 32;
+const unsigned int MAX_BLOCK_SIZE = 16;
 
 unsigned int ceil_div(unsigned int dividee, unsigned int devider)
 {
@@ -270,7 +271,6 @@ dim3 getGridSize()
 #include "CImg.h"
 #include "util_funcs.hpp"
 
-//FIXME: need debugging! seems the kernel does not run
 //TODO: refactor
 void run()
 {
@@ -283,16 +283,16 @@ void run()
     CameraConfig cameraConfig = {vec3(0.01, 100.0, glm::radians(90.0))};
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
 
-    cudaMemcpyToSymbol(Lights, &scene.lights[0], sizeof(Light) * scene.getLightNum());
-    cudaMemcpyToSymbol(Objects, &scene.objects[0], sizeof(Object) * scene.getObjNum());
-    cudaMemcpyToSymbol(Materials, &scene.materials[0], sizeof(Material) * scene.getMaterialNum());
+    checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene.lights[0], sizeof(Light) * scene.getLightNum()));
+    checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene.objects[0], sizeof(Object) * scene.getObjNum()));
+    checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene.materials[0], sizeof(Material) * scene.getMaterialNum()));
 
 
     dim3 dimGrid = getGridSize();
     dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
     auto image_size = sizeof(vec3) * WINDOW_WIDTH * WINDOW_HEIGHT;
     vec3* output_d;
-    cudaMalloc(&output_d, image_size);
+    checkCudaErrors(cudaMalloc(&output_d, image_size));
     renderer <<< dimGrid, dimBlock>>>(1, camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                       scene.getLightNum(),
                                       scene.getObjNum(),
