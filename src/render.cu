@@ -10,6 +10,7 @@ using namespace glm;
 __constant__ Light Lights[MAX_LIGHT_NUM];
 __constant__ Object Objects[MAX_OBJ_NUM];
 __constant__ Material Materials[MAX_MATERIAL_NUM];
+__constant__ vec2 Preturbs[MAX_SSR * MAX_SSR]; // uniform_random * grid_size
 
 struct Ray
 {
@@ -250,22 +251,23 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
     vec3 colorResult_f = shade(&primary, near, far, renderSetting.ray_marching_level, background_color);
 
     float grid_size = 1.0f / renderSetting.super_sample_rate;
-    float halt_grid_size = grid_size / 2.0f;
     float grid_base_x = x;
     float grid_base_y;
+    unsigned int i = 0;
     for (unsigned int grid_x = 0; grid_x < renderSetting.super_sample_rate; grid_x++, grid_base_x += grid_size)
     {
         grid_base_y = y;
         for (unsigned int grid_y = 0; grid_y < renderSetting.super_sample_rate; grid_y++, grid_base_y += grid_size)
         {
-            float rand_x = grid_base_x + halt_grid_size;
-            float rand_y = grid_base_y + halt_grid_size;
+            float rand_x = grid_base_x + Preturbs[i].x;
+            float rand_y = grid_base_y + Preturbs[i].y;
             vec3 rand_ray_dir_ec = normalize(
                     vec3(rand_x + x_off, rand_y + y_off, z));
             vec3 rand_ray_dir_wc = vec3(camera.look_at_mat * vec4(rand_ray_dir_ec, 0.0));
             primary.direction = rand_ray_dir_wc;
             vec3 color_f = shade(&primary, near, far, renderSetting.ray_marching_level, background_color);
             colorResult_f += color_f;
+            i++;
         }
     }
     colorResult_f /= (renderSetting.super_sample_rate * renderSetting.super_sample_rate + 1);

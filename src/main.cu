@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include <ctime>
+#include <random>
 #include "CImg.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -21,7 +22,6 @@ const unsigned int WINDOW_HEIGHT = 512;
 const unsigned int MAX_BLOCK_SIZE = 16;
 const unsigned int RM_LEVEL = 2;
 const unsigned int DEFAULT_SSR = 0;
-const unsigned int MAX_SSR = 5;
 
 unsigned int ceil_div(unsigned int dividee, unsigned int devider)
 {
@@ -39,6 +39,7 @@ dim3 getGridSize()
 extern __constant__ Light Lights[];
 extern __constant__ Object Objects[];
 extern __constant__ Material Materials[];
+extern __constant__ vec2 Preturbs[];
 
 Mode mode = Mode::Orbit;
 Camera default_camera = {vec3(0.0, 0.0, -6.0), vec3(0.0, 1.0, 0.0), vec3(0.0),
@@ -148,6 +149,14 @@ bool handleMouseClick(const cimg_library::CImgDisplay &display)
     return false;
 }
 
+std::default_random_engine randomEngine;
+std::uniform_real_distribution<float> randomGen(0.0, 1.0);
+
+inline static float gen_rand()
+{
+    return randomGen(randomEngine);
+}
+
 #define BENCHMARKING
 
 int main()
@@ -164,6 +173,17 @@ int main()
     }
 
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+    if (renderSetting.super_sample_rate > 0)
+    {
+        vec2* super_sample_randoms = new vec2[renderSetting.super_sample_rate * renderSetting.super_sample_rate];
+        float grid_size = 1.0f / renderSetting.super_sample_rate;
+        for (int i = 0; i < renderSetting.super_sample_rate * renderSetting.super_sample_rate; i++)
+            super_sample_randoms[i] = vec2(gen_rand() * grid_size, gen_rand() * grid_size);
+        checkCudaErrors(cudaMemcpyToSymbol(Preturbs, super_sample_randoms,
+                                           sizeof(vec2) * renderSetting.super_sample_rate *
+                                           renderSetting.super_sample_rate));
+        delete[] super_sample_randoms;
+    }
     checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
@@ -204,6 +224,17 @@ int main()
 
         if (!need_render)
             continue;
+        if (renderSetting.super_sample_rate > 0)
+        {
+            vec2* super_sample_randoms = new vec2[renderSetting.super_sample_rate * renderSetting.super_sample_rate];
+            float grid_size = 1.0f / renderSetting.super_sample_rate;
+            for (int i = 0; i < renderSetting.super_sample_rate * renderSetting.super_sample_rate; i++)
+                super_sample_randoms[i] = vec2(gen_rand() * grid_size, gen_rand() * grid_size);
+            checkCudaErrors(cudaMemcpyToSymbol(Preturbs, super_sample_randoms,
+                                               sizeof(vec2) * renderSetting.super_sample_rate *
+                                               renderSetting.super_sample_rate));
+            delete[] super_sample_randoms;
+        }
 #ifdef BENCHMARKING
         cudaEvent_t start, stop;
         cudaEventCreate(&start);

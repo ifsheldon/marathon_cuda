@@ -14,6 +14,8 @@
 #define MAX_MATERIAL_NUM 50
 #define MAX_OBJ_NUM 50
 
+__constant__ const unsigned int MAX_SSR = 5;
+
 using glm::vec2;
 typedef glm::vec<3, unsigned char, glm::defaultp> color_u8;
 
