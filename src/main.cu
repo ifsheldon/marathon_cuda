@@ -162,6 +162,24 @@ static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
     return true;
 }
 
+bool handleMouseClick(const cimg_library::CImgDisplay &display)
+{
+    if ((display.button() & 1) && mode == Mode::Zoom) // left mouse button clicked
+    {
+        float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+        vec2 xy = vec2(display.mouse_x(), WINDOW_HEIGHT - display.mouse_y());
+        xy.x -= WINDOW_WIDTH / 2.0;
+        xy.y -= WINDOW_WIDTH / 2.0;
+        vec3 dir_ec = glm::normalize(vec3(xy, -z));
+        vec3 dir_wc = glm::normalize(vec3((camera.look_at_mat * vec4(dir_ec, 0.0))));
+        camera.center = camera.position + dir_wc;
+        camera.look_at_mat = lookAt(camera.position, camera.center, camera.up);
+        renderSetting.first_pass = true;
+        return true;
+    }
+    return false;
+}
+
 #define BENCHMARKING
 
 int main()
@@ -211,80 +229,51 @@ int main()
     while (!inputImageDisplay.is_closed())
     {
         inputImageDisplay.wait();
-        if ((inputImageDisplay.button() & 1) && mode == Mode::Zoom) // left mouse button clicked
-        {
-            float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
-            vec2 xy = vec2(inputImageDisplay.mouse_x(), WINDOW_HEIGHT - inputImageDisplay.mouse_y());
-            xy.x -= WINDOW_WIDTH / 2.0;
-            xy.y -= WINDOW_WIDTH / 2.0;
-            vec3 dir_ec = glm::normalize(vec3(xy, -z));
-            vec3 dir_wc = glm::normalize(vec3((camera.look_at_mat * vec4(dir_ec, 0.0))));
-            camera.center = camera.position + dir_wc;
-            camera.look_at_mat = lookAt(camera.position, camera.center, camera.up);
-            renderSetting.first_pass = true;
-            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
-                                              scene->getLightNum(),
-                                              scene->getObjNum(),
-                                              scene->background_color,
-                                              renderSetting,
-                                              output_d);
-            renderSetting.first_pass = false;
-            cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
-            for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
-            {
-                for (int x = 0; x < WINDOW_WIDTH; x++)
-                {
-                    int idx = base + x;
-                    *image.data(x, y, 0, 0) = output_h[idx].r;
-                    *image.data(x, y, 0, 1) = output_h[idx].g;
-                    *image.data(x, y, 0, 2) = output_h[idx].b;
-                }
-            }
-            image.display(inputImageDisplay);
-        }
+        bool need_render = false;
+        need_render = handleMouseClick(inputImageDisplay);
         if (inputImageDisplay.key())
+            need_render = handleKeyboardInput(inputImageDisplay);
+
+        if (!need_render)
+            continue;
+#ifdef BENCHMARKING
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
+#endif
+        renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+                                          scene->getLightNum(),
+                                          scene->getObjNum(),
+                                          scene->background_color,
+                                          renderSetting,
+                                          output_d);
+        renderSetting.first_pass = false;
+#ifdef BENCHMARKING
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        float milliseconds = 0.0f;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds,
+               renderSetting.super_sample_rate);
+        auto start_time = clock();
+#endif
+        cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
+        for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
         {
-            bool need_render = handleKeyboardInput(inputImageDisplay);
-            if (!need_render)
-                continue;
-#ifdef BENCHMARKING
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            cudaEventRecord(start);
-#endif
-            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
-                                              scene->getLightNum(),
-                                              scene->getObjNum(),
-                                              scene->background_color,
-                                              renderSetting,
-                                              output_d);
-            renderSetting.first_pass = false;
-#ifdef BENCHMARKING
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float milliseconds = 0.0f;
-            cudaEventElapsedTime(&milliseconds, start, stop);
-            printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds, renderSetting.super_sample_rate);
-            auto start_time = clock();
-#endif
-            cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
-            for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
+            for (int x = 0; x < WINDOW_WIDTH; x++)
             {
-                for (int x = 0; x < WINDOW_WIDTH; x++)
-                {
-                    int idx = base + x;
-                    *image.data(x, y, 0, 0) = output_h[idx].r;
-                    *image.data(x, y, 0, 1) = output_h[idx].g;
-                    *image.data(x, y, 0, 2) = output_h[idx].b;
-                }
+                int idx = base + x;
+                *image.data(x, y, 0, 0) = output_h[idx].r;
+                *image.data(x, y, 0, 1) = output_h[idx].g;
+                *image.data(x, y, 0, 2) = output_h[idx].b;
             }
-            image.display(inputImageDisplay);
-#ifdef BENCHMARKING
-            auto end_time = clock();
-            printf("Took %ld ms to display\n", end_time - start_time);
-#endif
         }
+        image.display(inputImageDisplay);
+#ifdef BENCHMARKING
+        auto end_time = clock();
+        printf("Took %ld ms to display\n", end_time - start_time);
+#endif
     }
     delete[] output_h;
     delete scene;
