@@ -224,6 +224,8 @@ int main()
     copy_to_framebuffer(image, image_size, output_d, output_h);
     renderSetting.first_pass = false;
     cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
+    unsigned int render_count = 0;
+    unsigned int max_accumulate_frames = 3;
     while (!inputImageDisplay.is_closed())
     {
         inputImageDisplay.wait();
@@ -232,38 +234,43 @@ int main()
         if (inputImageDisplay.key())
             need_render = handleKeyboardInput(inputImageDisplay);
 
-        if (!need_render)
-            continue;
+        if (need_render || (renderSetting.super_sample_rate > 0 && render_count < max_accumulate_frames))
+        {
+            if (!need_render)
+                render_count++;
+            else
+                render_count = 0;
 
-        gen_random_preturbs_to_device();
+            gen_random_preturbs_to_device();
 #ifdef BENCHMARKING
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start);
+            cudaEvent_t start, stop;
+            cudaEventCreate(&start);
+            cudaEventCreate(&stop);
+            cudaEventRecord(start);
 #endif
-        renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
-                                          scene->getLightNum(),
-                                          scene->getObjNum(),
-                                          scene->background_color,
-                                          renderSetting,
-                                          output_d);
-        renderSetting.first_pass = false;
+            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+                                              scene->getLightNum(),
+                                              scene->getObjNum(),
+                                              scene->background_color,
+                                              renderSetting,
+                                              output_d);
+            renderSetting.first_pass = false;
 #ifdef BENCHMARKING
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        float milliseconds = 0.0f;
-        cudaEventElapsedTime(&milliseconds, start, stop);
-        printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds,
-               renderSetting.super_sample_rate);
-        auto start_time = clock();
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            float milliseconds = 0.0f;
+            cudaEventElapsedTime(&milliseconds, start, stop);
+            printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds,
+                   renderSetting.super_sample_rate);
+            auto start_time = clock();
 #endif
-        copy_to_framebuffer(image, image_size, output_d, output_h);
-        image.display(inputImageDisplay);
+            copy_to_framebuffer(image, image_size, output_d, output_h);
+            image.display(inputImageDisplay);
 #ifdef BENCHMARKING
-        auto end_time = clock();
-        printf("Took %ld ms to display\n", end_time - start_time);
+            auto end_time = clock();
+            printf("Took %ld ms to display\n", end_time - start_time);
 #endif
+        }
     }
     delete[] output_h;
     delete scene;
