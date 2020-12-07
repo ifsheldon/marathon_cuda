@@ -10,6 +10,7 @@
 #include "util_funcs.hpp"
 #include "helper_cuda.h"
 #include "parser.hpp"
+#include "render_setting.hpp"
 
 #define M_PI      3.14159265358979323846
 #define M_PI_2    1.57079632679489661923
@@ -172,7 +173,7 @@ int main()
     }
 
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
-
+    RenderSetting renderSetting = {RM_LEVEL, super_sample_rate, true, 0.5};
     checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
@@ -185,9 +186,8 @@ int main()
     renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                       scene->getLightNum(),
                                       scene->getObjNum(),
-                                      RM_LEVEL,
                                       scene->background_color,
-                                      super_sample_rate,
+                                      renderSetting,
                                       output_d);
 
     color_u8* output_h = new color_u8[WINDOW_WIDTH * WINDOW_HEIGHT];
@@ -202,6 +202,7 @@ int main()
             *image.data(x, y, 0, 2) = output_h[idx].b;
         }
     }
+    renderSetting.first_pass = false;
     cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
     while (!inputImageDisplay.is_closed())
     {
@@ -220,9 +221,8 @@ int main()
             renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
                                               scene->getLightNum(),
                                               scene->getObjNum(),
-                                              RM_LEVEL,
                                               scene->background_color,
-                                              super_sample_rate,
+                                              renderSetting,
                                               output_d);
 #ifdef BENCHMARKING
             cudaEventRecord(stop);

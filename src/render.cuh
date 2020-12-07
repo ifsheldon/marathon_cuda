@@ -8,6 +8,7 @@
 #include "camera.hpp"
 #include "scene.hpp"
 #include "glm/glm.hpp"
+#include "render_setting.hpp"
 
 #define MAX_LIGHT_NUM 10
 #define MAX_MATERIAL_NUM 50
@@ -21,9 +22,8 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
          const float z,
          const unsigned int light_num,
          const unsigned int obj_num,
-         const unsigned int ray_marching_level,
          const vec3 background_color,
-         const unsigned int super_sample_rate,
+         const RenderSetting renderSetting,
          color_u8* output_colors);
 
 #endif //MARATHON_CUDA_RENDER_CUH

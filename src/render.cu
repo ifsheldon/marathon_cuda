@@ -225,9 +225,8 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
          float z,
          const unsigned int lightNum,
          const unsigned int objNum,
-         const unsigned int ray_marching_level,
          const vec3 background_color,
-         const unsigned int super_sample_rate,
+         const RenderSetting renderSetting,
          color_u8* output_colors)
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -236,7 +235,7 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
     int height = (int) window_size.y;
     if (x >= width || y >= height)
         return;
-
+    color_u8 color = renderSetting.first_pass ? color_u8(0) : output_colors[y * width + x];
     float near = cameraConfig.config.x;
     float far = cameraConfig.config.y;
     light_num = lightNum;
@@ -248,16 +247,16 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
     vec3 rayDir_ec = normalize(vec3(coord_sc, z));
     vec3 rayDir_wc = vec3(camera.look_at_mat * vec4(rayDir_ec, 0.0));
     Ray primary = {camera.position, rayDir_wc};
-    vec3 colorResult_f = shade(&primary, near, far, ray_marching_level, background_color);
+    vec3 colorResult_f = shade(&primary, near, far, renderSetting.ray_marching_level, background_color);
 
-    float grid_size = 1.0f / super_sample_rate;
+    float grid_size = 1.0f / renderSetting.super_sample_rate;
     float halt_grid_size = grid_size / 2.0f;
     float grid_base_x = x;
     float grid_base_y;
-    for (unsigned int grid_x = 0; grid_x < super_sample_rate; grid_x++, grid_base_x += grid_size)
+    for (unsigned int grid_x = 0; grid_x < renderSetting.super_sample_rate; grid_x++, grid_base_x += grid_size)
     {
         grid_base_y = y;
-        for (unsigned int grid_y = 0; grid_y < super_sample_rate; grid_y++, grid_base_y += grid_size)
+        for (unsigned int grid_y = 0; grid_y < renderSetting.super_sample_rate; grid_y++, grid_base_y += grid_size)
         {
             float rand_x = grid_base_x + halt_grid_size;
             float rand_y = grid_base_y + halt_grid_size;
@@ -265,13 +264,22 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
                     vec3(rand_x + x_off, rand_y + y_off, z));
             vec3 rand_ray_dir_wc = vec3(camera.look_at_mat * vec4(rand_ray_dir_ec, 0.0));
             primary.direction = rand_ray_dir_wc;
-            vec3 color_f = shade(&primary, near, far, ray_marching_level, background_color);
+            vec3 color_f = shade(&primary, near, far, renderSetting.ray_marching_level, background_color);
             colorResult_f += color_f;
         }
     }
-    colorResult_f /= (super_sample_rate * super_sample_rate + 1);
-    vec3 colorResult = max(min(colorResult_f * 255.f, vec3(255.f)), vec3(0.f)); // convert to [0-255]
-    color_u8 color(0);
+    colorResult_f /= (renderSetting.super_sample_rate * renderSetting.super_sample_rate + 1);
+    vec3 colorResult;
+    if (renderSetting.first_pass)
+    {
+        colorResult = max(min(colorResult_f * 255.f, vec3(255.f)), vec3(0.f)); // convert to [0-255]
+    } else
+    {
+        colorResult = max(
+                min((colorResult_f * 255.f * renderSetting.alpha +
+                     vec3(color.r, color.g, color.b) * (1.0f - renderSetting.alpha)), vec3(255.f)),
+                vec3(0.f)); // convert to [0-255]
+    }
     color.r = (unsigned char) colorResult.r;
     color.g = (unsigned char) colorResult.g;
     color.b = (unsigned char) colorResult.b;
