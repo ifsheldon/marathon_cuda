@@ -6,7 +6,6 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "scene.hpp"
 #include "render.cuh"
-#include "CImg.h"
 #include "util_funcs.hpp"
 #include "helper_cuda.h"
 #include "parser.hpp"
