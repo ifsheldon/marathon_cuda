@@ -149,12 +149,42 @@ bool handleMouseClick(const cimg_library::CImgDisplay &display)
     return false;
 }
 
-std::default_random_engine randomEngine;
-std::uniform_real_distribution<float> randomGen(0.0, 1.0);
+void copy_to_framebuffer(cimg_library::CImg<unsigned char> &image, size_t image_size, const color_u8* device_src,
+                         color_u8* host_dest)
+{
+    cudaMemcpy(host_dest, device_src, image_size, cudaMemcpyDeviceToHost);
+    for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
+    {
+        for (int x = 0; x < WINDOW_WIDTH; x++)
+        {
+            int idx = base + x;
+            *image.data(x, y, 0, 0) = host_dest[idx].r;
+            *image.data(x, y, 0, 1) = host_dest[idx].g;
+            *image.data(x, y, 0, 2) = host_dest[idx].b;
+        }
+    }
+}
+
 
 inline static float gen_rand()
 {
+    static std::default_random_engine randomEngine;
+    static std::uniform_real_distribution<float> randomGen(0.0, 1.0);
     return randomGen(randomEngine);
+}
+
+void gen_random_preturbs_to_device()
+{
+    static vec2 super_sample_randoms[MAX_SSR * MAX_SSR];
+    if (renderSetting.super_sample_rate > 0)
+    {
+        float grid_size = 1.0f / renderSetting.super_sample_rate;
+        for (int i = 0; i < renderSetting.super_sample_rate * renderSetting.super_sample_rate; i++)
+            super_sample_randoms[i] = vec2(gen_rand() * grid_size, gen_rand() * grid_size);
+        checkCudaErrors(cudaMemcpyToSymbol(Preturbs, super_sample_randoms,
+                                           sizeof(vec2) * renderSetting.super_sample_rate *
+                                           renderSetting.super_sample_rate));
+    }
 }
 
 #define BENCHMARKING
@@ -173,17 +203,7 @@ int main()
     }
 
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
-    if (renderSetting.super_sample_rate > 0)
-    {
-        vec2* super_sample_randoms = new vec2[renderSetting.super_sample_rate * renderSetting.super_sample_rate];
-        float grid_size = 1.0f / renderSetting.super_sample_rate;
-        for (int i = 0; i < renderSetting.super_sample_rate * renderSetting.super_sample_rate; i++)
-            super_sample_randoms[i] = vec2(gen_rand() * grid_size, gen_rand() * grid_size);
-        checkCudaErrors(cudaMemcpyToSymbol(Preturbs, super_sample_randoms,
-                                           sizeof(vec2) * renderSetting.super_sample_rate *
-                                           renderSetting.super_sample_rate));
-        delete[] super_sample_randoms;
-    }
+    gen_random_preturbs_to_device();
     checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
@@ -201,17 +221,7 @@ int main()
                                       output_d);
 
     color_u8* output_h = new color_u8[WINDOW_WIDTH * WINDOW_HEIGHT];
-    cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
-    for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
-    {
-        for (int x = 0; x < WINDOW_WIDTH; x++)
-        {
-            int idx = base + x;
-            *image.data(x, y, 0, 0) = output_h[idx].r;
-            *image.data(x, y, 0, 1) = output_h[idx].g;
-            *image.data(x, y, 0, 2) = output_h[idx].b;
-        }
-    }
+    copy_to_framebuffer(image, image_size, output_d, output_h);
     renderSetting.first_pass = false;
     cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
     while (!inputImageDisplay.is_closed())
@@ -224,17 +234,8 @@ int main()
 
         if (!need_render)
             continue;
-        if (renderSetting.super_sample_rate > 0)
-        {
-            vec2* super_sample_randoms = new vec2[renderSetting.super_sample_rate * renderSetting.super_sample_rate];
-            float grid_size = 1.0f / renderSetting.super_sample_rate;
-            for (int i = 0; i < renderSetting.super_sample_rate * renderSetting.super_sample_rate; i++)
-                super_sample_randoms[i] = vec2(gen_rand() * grid_size, gen_rand() * grid_size);
-            checkCudaErrors(cudaMemcpyToSymbol(Preturbs, super_sample_randoms,
-                                               sizeof(vec2) * renderSetting.super_sample_rate *
-                                               renderSetting.super_sample_rate));
-            delete[] super_sample_randoms;
-        }
+
+        gen_random_preturbs_to_device();
 #ifdef BENCHMARKING
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
@@ -257,17 +258,7 @@ int main()
                renderSetting.super_sample_rate);
         auto start_time = clock();
 #endif
-        cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
-        for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
-        {
-            for (int x = 0; x < WINDOW_WIDTH; x++)
-            {
-                int idx = base + x;
-                *image.data(x, y, 0, 0) = output_h[idx].r;
-                *image.data(x, y, 0, 1) = output_h[idx].g;
-                *image.data(x, y, 0, 2) = output_h[idx].b;
-            }
-        }
+        copy_to_framebuffer(image, image_size, output_d, output_h);
         image.display(inputImageDisplay);
 #ifdef BENCHMARKING
         auto end_time = clock();
