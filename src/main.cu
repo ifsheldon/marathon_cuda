@@ -79,24 +79,26 @@ Camera camera = default_camera;
 CameraConfig cameraConfig = {vec3(0.01, 100.0, glm::radians(90.0))};
 vec3 original_polar_coords = vec3(0.0, M_PI_2, 6.0);
 vec3 polar_coords = vec3(0.0, M_PI_2, 6.0); // (theta, phi, radius)
-unsigned int super_sample_rate = DEFAULT_SSR;
+RenderSetting renderSetting = {RM_LEVEL, DEFAULT_SSR, true, 0.5};
 
 static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
 {
-    if (display.is_keyARROWUP() && super_sample_rate < MAX_SSR)
+    if (display.is_keyARROWUP() && renderSetting.super_sample_rate < MAX_SSR)
     {
-        super_sample_rate++;
-        printf("Super sample rate = %d\n", super_sample_rate);
-    } else if (display.is_keyARROWDOWN() && super_sample_rate > DEFAULT_SSR)
+        renderSetting.super_sample_rate++;
+        printf("Super sample rate = %d\n", renderSetting.super_sample_rate);
+    } else if (display.is_keyARROWDOWN() && renderSetting.super_sample_rate > DEFAULT_SSR)
     {
-        super_sample_rate--;
-        printf("Super sample rate = %d\n", super_sample_rate);
+        renderSetting.super_sample_rate--;
+        printf("Super sample rate = %d\n", renderSetting.super_sample_rate);
     } else if (mode == Mode::Orbit)
     {
         if (display.is_key2())
         {
             mode = Mode::Zoom;
+            renderSetting.first_pass = true;
             printf("Switched to Zoom mode");
+            return true;
         } else if (display.is_keyA())
         {
             polar_coords.x += glm::radians(5.0);
@@ -140,7 +142,10 @@ static bool handleKeyboardInput(const cimg_library::CImgDisplay &display)
         {
             mode = Mode::Orbit;
             printf("Switched to Orbit mode");
-            return false;
+            camera = default_camera;
+            polar_coords = original_polar_coords;
+            renderSetting.first_pass = true;
+            return true;
         } else if (display.is_keyZ())
         {
             vec3 focus_dir = -camera.look_at_mat[2];
@@ -173,7 +178,6 @@ int main()
     }
 
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
-    RenderSetting renderSetting = {RM_LEVEL, super_sample_rate, true, 0.5};
     checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
     checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
@@ -207,10 +211,41 @@ int main()
     while (!inputImageDisplay.is_closed())
     {
         inputImageDisplay.wait();
+        if ((inputImageDisplay.button() & 1) && mode == Mode::Zoom) // left mouse button clicked
+        {
+            float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+            vec2 xy = vec2(inputImageDisplay.mouse_x(), WINDOW_HEIGHT - inputImageDisplay.mouse_y());
+            xy.x -= WINDOW_WIDTH / 2.0;
+            xy.y -= WINDOW_WIDTH / 2.0;
+            vec3 dir_ec = glm::normalize(vec3(xy, -z));
+            vec3 dir_wc = glm::normalize(vec3((camera.look_at_mat * vec4(dir_ec, 0.0))));
+            camera.center = camera.position + dir_wc;
+            camera.look_at_mat = lookAt(camera.position, camera.center, camera.up);
+            renderSetting.first_pass = true;
+            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+                                              scene->getLightNum(),
+                                              scene->getObjNum(),
+                                              scene->background_color,
+                                              renderSetting,
+                                              output_d);
+            renderSetting.first_pass = false;
+            cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
+            for (int y = 0, base = 0; y < WINDOW_HEIGHT; y++, base += WINDOW_WIDTH)
+            {
+                for (int x = 0; x < WINDOW_WIDTH; x++)
+                {
+                    int idx = base + x;
+                    *image.data(x, y, 0, 0) = output_h[idx].r;
+                    *image.data(x, y, 0, 1) = output_h[idx].g;
+                    *image.data(x, y, 0, 2) = output_h[idx].b;
+                }
+            }
+            image.display(inputImageDisplay);
+        }
         if (inputImageDisplay.key())
         {
-            bool need_rerender = handleKeyboardInput(inputImageDisplay);
-            if (!need_rerender)
+            bool need_render = handleKeyboardInput(inputImageDisplay);
+            if (!need_render)
                 continue;
 #ifdef BENCHMARKING
             cudaEvent_t start, stop;
@@ -224,12 +259,13 @@ int main()
                                               scene->background_color,
                                               renderSetting,
                                               output_d);
+            renderSetting.first_pass = false;
 #ifdef BENCHMARKING
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             float milliseconds = 0.0f;
             cudaEventElapsedTime(&milliseconds, start, stop);
-            printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds, super_sample_rate);
+            printf("Took %.2f ms to render one frame, super sample rate = %d\n", milliseconds, renderSetting.super_sample_rate);
             auto start_time = clock();
 #endif
             cudaMemcpy(output_h, output_d, image_size, cudaMemcpyDeviceToHost);
