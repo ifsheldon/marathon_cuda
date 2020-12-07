@@ -16,7 +16,7 @@ bool parse_scene_raw(const Scene &scene, const char* path)
     using namespace jsonxx;
     using namespace std;
     json j;
-
+    j["background_color"] = {scene.background_color.r, scene.background_color.g, scene.background_color.b};
     j["shape_definitions"] = {{"Sphere",   Shape::Sphere},
                               {"Cylinder", Shape::Cylinder}};
     j["lights"] = {};
@@ -97,9 +97,11 @@ Scene* read_scene_from_json(const char* path)
     if (!ifs.is_open())
         return nullptr;
 
-    Scene* scene = new Scene();
+
     json j;
     ifs >> j;
+    vec3 background_color = vec3(j["background_color"][0], j["background_color"][1], j["background_color"][2]);
+    Scene* scene = new Scene(background_color);
     int sphere_code = j["shape_definitions"]["Sphere"].as_int();
     int cylinder_code = j["shape_definitions"]["Cylinder"].as_int();
 

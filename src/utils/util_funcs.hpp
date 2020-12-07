@@ -15,7 +15,7 @@ using glm::vec3;
 
 Scene setupScene()
 {
-    Scene scene;
+    Scene scene(vec3(0.5));
     mat4 identity(1.0);
     scene.addMaterial(vec3(1.0), vec3(0.5), vec3(1.0), vec3(0.5), 64.0f);
     scene.addMaterial(vec3(0.16, 0.14, 0.02), vec3(0.8, 0.7, 0.1), vec3(1.0), vec3(0.5), 64.0f);

@@ -163,13 +163,19 @@ int main()
     if (!queryGPUCapabilitiesCUDA())
         exit(EXIT_FAILURE);
     cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
-    Scene scene = setupScene();
-    float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
-    vec3 background_color = vec3(0.5);
+    auto scene_json_file_path = "../test.json";
+    Scene* scene = read_scene_from_json(scene_json_file_path);
+    if (scene == nullptr)
+    {
+        cerr << "Unable to open Scene json file at " << scene_json_file_path << endl;
+        return EXIT_FAILURE;
+    }
 
-    checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene.lights[0], sizeof(Light) * scene.getLightNum()));
-    checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene.objects[0], sizeof(Object) * scene.getObjNum()));
-    checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene.materials[0], sizeof(Material) * scene.getMaterialNum()));
+    float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+
+    checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
+    checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
+    checkCudaErrors(cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
 
     dim3 dimGrid = getGridSize();
     dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
@@ -177,10 +183,10 @@ int main()
     color_u8* output_d;
     checkCudaErrors(cudaMalloc(&output_d, image_size));
     renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
-                                      scene.getLightNum(),
-                                      scene.getObjNum(),
+                                      scene->getLightNum(),
+                                      scene->getObjNum(),
                                       RM_LEVEL,
-                                      background_color,
+                                      scene->background_color,
                                       super_sample_rate,
                                       output_d);
 
@@ -212,10 +218,10 @@ int main()
             cudaEventRecord(start);
 #endif
             renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
-                                              scene.getLightNum(),
-                                              scene.getObjNum(),
+                                              scene->getLightNum(),
+                                              scene->getObjNum(),
                                               RM_LEVEL,
-                                              background_color,
+                                              scene->background_color,
                                               super_sample_rate,
                                               output_d);
 #ifdef BENCHMARKING
@@ -245,6 +251,7 @@ int main()
         }
     }
     delete[] output_h;
+    delete scene;
     cudaFree(output_d);
     return 0;
 }
@@ -253,7 +260,7 @@ int main()
 //{
 ////    Scene s = setupScene();
 ////    parse_scene_raw(s, "test.json");
-//    Scene* scene = read_scene_from_json("test.json");
+//    Scene* scene = read_scene_from_json("../test.json");
 //    delete scene;
 //    return 0;
 //}

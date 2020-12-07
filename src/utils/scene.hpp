@@ -60,9 +60,11 @@ public:
     vector<Light> lights;
     vector<Material> materials;
     vector<Object> objects;
+    vec3 background_color;
 
-    explicit Scene(unsigned int max_light_num = 10, unsigned int max_obj_num = 50, unsigned int max_material_num = 50)
+    explicit Scene(vec3 background_color ,unsigned int max_light_num = 10, unsigned int max_obj_num = 50, unsigned int max_material_num = 50)
     {
+        this->background_color = background_color;
         this->max_light_num = max_light_num;
         this->max_obj_num = max_obj_num;
         this->max_material_num = max_material_num;
