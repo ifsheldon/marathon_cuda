@@ -22,6 +22,7 @@ const unsigned int WINDOW_HEIGHT = 512;
 const unsigned int MAX_BLOCK_SIZE = 16;
 const unsigned int RM_LEVEL = 2;
 const unsigned int DEFAULT_SSR = 0;
+const unsigned int MAX_ACCUMULATE_FRAME_NUM = 3;
 
 unsigned int ceil_div(unsigned int dividee, unsigned int devider)
 {
@@ -189,13 +190,16 @@ void gen_random_preturbs_to_device()
 
 #define BENCHMARKING
 
+#include <windows.h>
+
 int main()
 {
     if (!queryGPUCapabilitiesCUDA())
         exit(EXIT_FAILURE);
     cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
     auto scene_json_file_path = "../test.json";
-    Scene* scene = read_scene_from_json(scene_json_file_path);
+//    Scene* scene = read_scene_from_json(scene_json_file_path);
+    Scene* scene = setupScene();
     if (scene == nullptr)
     {
         cerr << "Unable to open Scene json file at " << scene_json_file_path << endl;
@@ -225,21 +229,25 @@ int main()
     renderSetting.first_pass = false;
     cimg_library::CImgDisplay inputImageDisplay(image, "Marathon on CUDA");
     unsigned int render_count = 0;
-    unsigned int max_accumulate_frames = 3;
     while (!inputImageDisplay.is_closed())
     {
-        inputImageDisplay.wait();
+//        inputImageDisplay.wait();
         bool need_render = false;
         need_render = handleMouseClick(inputImageDisplay);
         if (inputImageDisplay.key())
             need_render = handleKeyboardInput(inputImageDisplay);
 
-        if (need_render || (renderSetting.super_sample_rate > 0 && render_count < max_accumulate_frames))
+        if (need_render || render_count < MAX_ACCUMULATE_FRAME_NUM)
         {
             if (!need_render)
+            {
+                renderSetting.alpha = 1.0f / MAX_ACCUMULATE_FRAME_NUM;
                 render_count++;
-            else
+            } else
+            {
+                renderSetting.alpha = 0.9f;
                 render_count = 0;
+            }
 
             gen_random_preturbs_to_device();
 #ifdef BENCHMARKING
@@ -270,6 +278,9 @@ int main()
             auto end_time = clock();
             printf("Took %ld ms to display\n", end_time - start_time);
 #endif
+        } else
+        {
+            Sleep(10);
         }
     }
     delete[] output_h;
