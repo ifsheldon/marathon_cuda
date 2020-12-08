@@ -71,6 +71,7 @@ bool queryGPUCapabilitiesCUDA()
     std::cout << "Mem Pitch (bytes) " << properties.memPitch << std::endl;
     std::cout << "Total Constant Memory (bytes): " << properties.totalConstMem << std::endl;
     std::cout << "Warp Size: " << properties.warpSize << std::endl;
+    std::cout << "Compute Capability: " << properties.major << std::endl;
     return devCount > 0;
 }
 
