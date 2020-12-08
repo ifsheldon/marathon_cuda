@@ -28,4 +28,6 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
          const RenderSetting renderSetting,
          color_u8* output_colors);
 
+void configure_all_device_funcs();
+
 #endif //MARATHON_CUDA_RENDER_CUH

@@ -287,3 +287,19 @@ renderer(const Camera camera, const CameraConfig cameraConfig, const vec2 window
     color.b = (unsigned char) colorResult.b;
     output_colors[y * width + x] = color;
 }
+
+
+void configure_all_device_funcs()
+{
+    cudaFuncSetCacheConfig(renderer, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(shade, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(castRay, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(PhongLighting, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(estimateNormal, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(shortestDistanceToSurface, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(sceneSDF, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(unionSDF, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(calcDist, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(sdCylinder, cudaFuncCachePreferL1);
+    cudaFuncSetCacheConfig(sdSphere, cudaFuncCachePreferL1);
+}

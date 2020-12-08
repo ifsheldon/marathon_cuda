@@ -205,7 +205,7 @@ int main()
         cerr << "Unable to open Scene json file at " << scene_json_file_path << endl;
         return EXIT_FAILURE;
     }
-
+    configure_all_device_funcs();
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
     gen_random_preturbs_to_device();
     checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
