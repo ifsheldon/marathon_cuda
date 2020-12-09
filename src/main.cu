@@ -21,12 +21,12 @@ const unsigned int RM_LEVEL = 2;
 const unsigned int DEFAULT_SSR = 0;
 const unsigned int MAX_ACCUMULATE_FRAME_NUM = 3;
 
-unsigned int ceil_div(unsigned int dividee, unsigned int devider)
+unsigned int ceil_div(unsigned int dividee, unsigned int divider)
 {
-    if (dividee % devider == 0)
-        return dividee / devider;
+    if (dividee % divider == 0)
+        return dividee / divider;
     else
-        return dividee / devider + 1;
+        return dividee / divider + 1;
 }
 
 dim3 getGridSize()
