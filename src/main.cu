@@ -19,6 +19,7 @@ const unsigned int WINDOW_HEIGHT = 512;
 const unsigned int MAX_BLOCK_SIZE = 16;
 const unsigned int RM_LEVEL = 2;
 const unsigned int DEFAULT_SSR = 0;
+const unsigned int MAX_ACCUMULATE_FRAME_NUM = 3;
 
 unsigned int ceil_div(unsigned int dividee, unsigned int devider)
 {
@@ -184,23 +185,34 @@ void gen_random_preturbs_to_device()
     }
 }
 
-#define BENCHMARKING
+
+#ifndef BENCHMARKING
+#define MEASURE_TIME
 
 #include <windows.h>
+
+const bool read_scene_from_json_file = false;
 
 int main()
 {
     if (!queryGPUCapabilitiesCUDA())
         exit(EXIT_FAILURE);
     cimg_library::CImg<unsigned char> image(WINDOW_WIDTH, WINDOW_HEIGHT, 1, 3);
-    auto scene_json_file_path = "../test.json";
-//    Scene* scene = read_scene_from_json(scene_json_file_path);
-    Scene* scene = setupScene();
-    if (scene == nullptr)
+    Scene* scene = nullptr;
+    if (read_scene_from_json_file)
     {
-        cerr << "Unable to open Scene json file at " << scene_json_file_path << endl;
-        return EXIT_FAILURE;
+        auto scene_json_file_path = "../test.json";
+        scene = read_scene_from_json(scene_json_file_path);
+        if (scene == nullptr)
+        {
+            cerr << "Unable to open Scene json file at " << scene_json_file_path << endl;
+            return EXIT_FAILURE;
+        }
+    } else
+    {
+        scene = setupScene();
     }
+
     configure_all_device_funcs();
     float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
     gen_random_preturbs_to_device();
@@ -246,7 +258,7 @@ int main()
             }
 
             gen_random_preturbs_to_device();
-#ifdef BENCHMARKING
+#ifdef MEASURE_TIME
             cudaEvent_t start, stop;
             cudaEventCreate(&start);
             cudaEventCreate(&stop);
@@ -259,7 +271,7 @@ int main()
                                               renderSetting,
                                               output_d);
             renderSetting.first_pass = false;
-#ifdef BENCHMARKING
+#ifdef MEASURE_TIME
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             float milliseconds = 0.0f;
@@ -270,7 +282,7 @@ int main()
 #endif
             copy_to_framebuffer(image, image_size, output_d, output_h);
             image.display(inputImageDisplay);
-#ifdef BENCHMARKING
+#ifdef MEASURE_TIME
             auto end_time = clock();
             printf("Took %ld ms to display\n", end_time - start_time);
 #endif
@@ -285,58 +297,62 @@ int main()
     return 0;
 }
 
-//int main()
-//{
-//    if (!queryGPUCapabilitiesCUDA())
-//        exit(EXIT_FAILURE);
-//    configure_all_device_funcs();
-//    float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
-//    dim3 dimGrid = getGridSize();
-//    dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
-//    auto image_size = sizeof(color_u8) * WINDOW_WIDTH * WINDOW_HEIGHT;
-//    color_u8* output_d;
-//    checkCudaErrors(cudaMalloc(&output_d, image_size));
-//    color_u8* output_h = new color_u8[WINDOW_WIDTH * WINDOW_HEIGHT];
-//    int i = 1;
-//    printf("object number, frame render time avg, object render time avg\n");
-//    renderSetting.first_pass = false;
-//    for (int j = 0; j <= 15; j++)
-//    {
-//        Scene* scene = _setupScene(i, j);
-//        gen_random_preturbs_to_device();
-//        checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
-//        checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
-//        checkCudaErrors(
-//                cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
-//        cudaEvent_t start, stop;
-//        cudaEventCreate(&start);
-//        cudaEventCreate(&stop);
-//        cudaEventRecord(start);
-//        for (int c = 0; c < 100; c++)
-//        {
-//            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
-//                                              scene->getLightNum(),
-//                                              scene->getObjNum(),
-//                                              scene->background_color,
-//                                              renderSetting,
-//                                              output_d);
-//
-//        }
-//        cudaEventRecord(stop);
-//        cudaEventSynchronize(stop);
-//        float milliseconds = 0.0f;
-//        cudaEventElapsedTime(&milliseconds, start, stop);
-//        printf("%d, %.2f, %.2f\n", scene->getObjNum(), milliseconds / 100.f,
-//               (milliseconds / 100.f) / float(scene->getObjNum()));
-//        cudaEventDestroy(start);
-//        cudaEventDestroy(stop);
-//        delete scene;
-//    }
-//    delete[] output_h;
-//    cudaFree(output_d);
-//    return 0;
-//}
+#else
+int main()
+{
+    if (!queryGPUCapabilitiesCUDA())
+        exit(EXIT_FAILURE);
+    configure_all_device_funcs();
+    float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+    dim3 dimGrid = getGridSize();
+    dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
+    auto image_size = sizeof(color_u8) * WINDOW_WIDTH * WINDOW_HEIGHT;
+    color_u8* output_d;
+    checkCudaErrors(cudaMalloc(&output_d, image_size));
+    color_u8* output_h = new color_u8[WINDOW_WIDTH * WINDOW_HEIGHT];
+    int i = 1;
+    printf("object number, frame render time avg, object render time avg\n");
+    renderSetting.first_pass = false;
+    for (int j = 0; j <= 15; j++)
+    {
+        Scene* scene = _setupScene(i, j);
+        gen_random_preturbs_to_device();
+        checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
+        checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
+        checkCudaErrors(
+                cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
+        for (int c = 0; c < 100; c++)
+        {
+            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+                                              scene->getLightNum(),
+                                              scene->getObjNum(),
+                                              scene->background_color,
+                                              renderSetting,
+                                              output_d);
 
+        }
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        float milliseconds = 0.0f;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        printf("%d, %.2f, %.2f\n", scene->getObjNum(), milliseconds / 100.f,
+               (milliseconds / 100.f) / float(scene->getObjNum()));
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+        delete scene;
+    }
+    delete[] output_h;
+    cudaFree(output_d);
+    return 0;
+}
+
+#endif
+
+// For testing scene json parser
 //int main()
 //{
 ////    Scene s = setupScene();
