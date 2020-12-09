@@ -12,9 +12,6 @@
 #include "parser.hpp"
 #include "render_setting.hpp"
 
-#define M_PI      3.14159265358979323846
-#define M_PI_2    1.57079632679489661923
-
 using namespace std;
 
 const unsigned int WINDOW_WIDTH = 512;
@@ -22,7 +19,6 @@ const unsigned int WINDOW_HEIGHT = 512;
 const unsigned int MAX_BLOCK_SIZE = 16;
 const unsigned int RM_LEVEL = 2;
 const unsigned int DEFAULT_SSR = 0;
-const unsigned int MAX_ACCUMULATE_FRAME_NUM = 3;
 
 unsigned int ceil_div(unsigned int dividee, unsigned int devider)
 {
@@ -288,6 +284,58 @@ int main()
     cudaFree(output_d);
     return 0;
 }
+
+//int main()
+//{
+//    if (!queryGPUCapabilitiesCUDA())
+//        exit(EXIT_FAILURE);
+//    configure_all_device_funcs();
+//    float z = WINDOW_HEIGHT / tan(cameraConfig.config.z / 2.0);
+//    dim3 dimGrid = getGridSize();
+//    dim3 dimBlock(MAX_BLOCK_SIZE, MAX_BLOCK_SIZE);
+//    auto image_size = sizeof(color_u8) * WINDOW_WIDTH * WINDOW_HEIGHT;
+//    color_u8* output_d;
+//    checkCudaErrors(cudaMalloc(&output_d, image_size));
+//    color_u8* output_h = new color_u8[WINDOW_WIDTH * WINDOW_HEIGHT];
+//    int i = 1;
+//    printf("object number, frame render time avg, object render time avg\n");
+//    renderSetting.first_pass = false;
+//    for (int j = 0; j <= 15; j++)
+//    {
+//        Scene* scene = _setupScene(i, j);
+//        gen_random_preturbs_to_device();
+//        checkCudaErrors(cudaMemcpyToSymbol(Lights, &scene->lights[0], sizeof(Light) * scene->getLightNum()));
+//        checkCudaErrors(cudaMemcpyToSymbol(Objects, &scene->objects[0], sizeof(Object) * scene->getObjNum()));
+//        checkCudaErrors(
+//                cudaMemcpyToSymbol(Materials, &scene->materials[0], sizeof(Material) * scene->getMaterialNum()));
+//        cudaEvent_t start, stop;
+//        cudaEventCreate(&start);
+//        cudaEventCreate(&stop);
+//        cudaEventRecord(start);
+//        for (int c = 0; c < 100; c++)
+//        {
+//            renderer <<< dimGrid, dimBlock>>>(camera, cameraConfig, vec2(WINDOW_WIDTH, WINDOW_HEIGHT), z,
+//                                              scene->getLightNum(),
+//                                              scene->getObjNum(),
+//                                              scene->background_color,
+//                                              renderSetting,
+//                                              output_d);
+//
+//        }
+//        cudaEventRecord(stop);
+//        cudaEventSynchronize(stop);
+//        float milliseconds = 0.0f;
+//        cudaEventElapsedTime(&milliseconds, start, stop);
+//        printf("%d, %.2f, %.2f\n", scene->getObjNum(), milliseconds / 100.f,
+//               (milliseconds / 100.f) / float(scene->getObjNum()));
+//        cudaEventDestroy(start);
+//        cudaEventDestroy(stop);
+//        delete scene;
+//    }
+//    delete[] output_h;
+//    cudaFree(output_d);
+//    return 0;
+//}
 
 //int main()
 //{

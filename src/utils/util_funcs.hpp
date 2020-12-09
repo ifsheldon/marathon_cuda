@@ -33,6 +33,26 @@ Scene* setupScene()
     return scene;
 }
 
+Scene* _setupScene(int x_width, int z_len)
+{
+    auto scene = new Scene(vec3(0.5));
+    mat4 identity(1.0);
+    scene->addMaterial(vec3(1.0), vec3(0.5), vec3(1.0), vec3(0.5), 64.0f);
+    scene->addMaterial(vec3(0.16, 0.14, 0.02), vec3(0.8, 0.7, 0.1), vec3(1.0), vec3(0.5), 64.0f);
+    scene->addLight(vec3(0.4, -3, 0.1), vec3(0.1), vec3(1.0));
+    for (int x = -x_width; x <= x_width; x++)
+    {
+        for (int z = 0; z <= z_len; z++)
+        {
+            mat4 sphere_trans = glm::translate(identity, vec3(x, 1, z));
+            scene->addSphere(0.25, 0, sphere_trans);
+            mat4 cylinder_trans = glm::translate(identity, vec3(x, 0, z));
+            scene->addCylinder(0.25, 0.75, 1, cylinder_trans);
+        }
+    }
+    return scene;
+}
+
 mat4 lookAt(vec3 eye, vec3 center, vec3 up)
 {
     using namespace glm;
