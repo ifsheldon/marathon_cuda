@@ -1,0 +1,15 @@
+//
+// Created by Maple on 2020/12/9.
+//
+
+#ifndef MARATHON_CUDA_CONST_HPP
+#define MARATHON_CUDA_CONST_HPP
+
+#define M_PI      3.14159265358979323846
+#define M_PI_2    1.57079632679489661923
+
+#define MAX_LIGHT_NUM 10
+#define MAX_MATERIAL_NUM 50
+#define MAX_OBJ_NUM 200
+
+#endif //MARATHON_CUDA_CONST_HPP

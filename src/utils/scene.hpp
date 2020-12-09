@@ -5,6 +5,7 @@
 #ifndef MARATHON_CUDA_SCENE_HPP
 #define MARATHON_CUDA_SCENE_HPP
 
+#include "const.hpp"
 #include <vector>
 #include "glm/glm.hpp"
 
@@ -62,7 +63,9 @@ public:
     vector<Object> objects;
     vec3 background_color;
 
-    explicit Scene(vec3 background_color ,unsigned int max_light_num = 10, unsigned int max_obj_num = 50, unsigned int max_material_num = 50)
+    explicit Scene(vec3 background_color, unsigned int max_light_num = MAX_LIGHT_NUM,
+                   unsigned int max_obj_num = MAX_OBJ_NUM,
+                   unsigned int max_material_num = MAX_MATERIAL_NUM)
     {
         this->background_color = background_color;
         this->max_light_num = max_light_num;

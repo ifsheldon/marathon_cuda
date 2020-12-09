@@ -9,10 +9,7 @@
 #include "scene.hpp"
 #include "glm/glm.hpp"
 #include "render_setting.hpp"
-
-#define MAX_LIGHT_NUM 10
-#define MAX_MATERIAL_NUM 50
-#define MAX_OBJ_NUM 50
+#include "const.hpp"
 
 __constant__ const unsigned int MAX_SSR = 5;
 
